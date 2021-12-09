@@ -1,0 +1,285 @@
+---
+title: "Report of MA678 Midterm Project"
+author: "Li Yuyang"
+date: "December 6, 2021"
+output:
+  pdf_document:
+    latex_engine: xelatex
+  html_document: default
+---
+
+```{r setup, include=FALSE, warning=FALSE}
+knitr::opts_chunk$set(echo = TRUE,out.width="0.9\\linewidth",dev="png",fig.align  = 'center')
+pacman::p_load(
+ggplot2,
+knitr,
+arm,
+data.table,
+foreign,
+gridExtra,
+car,
+stringr,
+rstan,
+rstanarm,
+zoo,
+egg
+)
+library(readr)
+library(tidyverse)
+library(stringr)
+library(rstanarm)
+library(knitr)
+library(magrittr)
+library(kableExtra)
+library(gridExtra)
+library(tidytext)
+library(lubridate)
+library(car) 
+library(gvlma)
+library(lme4)
+library(arm)
+library(lmerTest)
+library(lattice)
+```
+
+## Abstract
+As the developing of mobile landscape, proportion of mobile device usage is increasing, so it's necessary for each tech company to improve the quality of their products in app market. However, there are a mass of different apps in one genre, then how to make your app seems attractive in app market and get more users is the key point for each company to consider. When an user wanna download an app from the market, the comments of the app is definitely one of the most important part for him to decide. This report are consisted of 4 parts: Introduction, Method, Result and Discussion.
+
+
+
+## Introduction
+Comments of app are proportional to downloads, which means that an app has more comments represent it has more users in general. Meanwhile, the comments can be kind of feedback for companies to improve their product.
+
+In this project I use the data from ios platform, which holds about 47% of the smartphone market to analyse the relationship between comments value of different genres and some factors may influence the comments by using multilevel model. For example, the price may be a common factor when a user viewing store to choose an app to download and comment.
+
+## Method
+
+### Data source
+Link of the dataset from Kaggle:[Mobile App Store ( 7200 apps)](https://www.kaggle.com/ramamet4/app-store-apple-data-set-10k-apps)
+
+### Data clean
+Firstly, I selected the columns that will be useful for my analysis, and then I cleaned the data by filtering by the genres, there are twenty-two primary genres in the data, and other rows are deleted because of containing some unreadable words. Also, I removed NA value and some meaningless symbols. For the price column, it looks strange for most of the value are end with 0.99, so I rounded up all the decimals in price.
+```{r include=FALSE}
+library(tidyverse)
+library(dplyr)
+raw_app<-read.csv(file="AppleStore.csv")
+Encoding(raw_app$track_name) <-  "UTF-8" ##转换成UTF-8
+#select the needed columns for later analysis
+app<- raw_app%>%
+  select(id,track_name,price,rating_count_tot,user_rating,cont_rating,prime_genre,lang.num,sup_devices.num)
+```
+
+
+```{r include=FALSE}
+#select data by 22 genres
+app1<-filter(app,prime_genre=="Games"|prime_genre=="Productivity"|prime_genre=="Weather"|prime_genre=="Shopping"|prime_genre=="Reference"|prime_genre=="Finance"|prime_genre=="Music"|prime_genre=="Utilities"|prime_genre=="Travel"|prime_genre=="Social Networking"|prime_genre=="Sports"|prime_genre=="Business"|prime_genre=="Health & Fitness"|prime_genre=="Entertainment"|prime_genre=="News"|prime_genre=="Navigation"|prime_genre=="Education"|prime_genre=="Book"|prime_genre=="Lifestyle"|prime_genre=="Photo & Video"|prime_genre=="Food & Drink"|prime_genre=="Medical")%>%
+  filter(rating_count_tot!=0)
+
+# See genres
+unique(app1$prime_genre)
+
+#delete + in cont_rating
+app1$cont_rating<-gsub('[+]', '', app1$cont_rating)
+app1$price<- as.numeric(ceiling(as.numeric(app1$price)))
+app1$rating_count_tot<- as.numeric(app1$rating_count_tot)
+app1<- app1%>%
+  mutate(paid= ifelse(price>0,1,0))%>%
+  filter(lang.num !="0")
+
+app1$user_rating<- as.numeric(app1$user_rating)
+app1$lang.num<- as.numeric(app1$lang.num)
+
+```
+\newpage
+### variables interpretat
+
+| column names      | explanation |
+| :--:              | :----- |
+| id                | App ID |
+| track_name        | App Name |
+| price             | Price amount |
+| rating_count_tot  | User Rating counts (for all version) |
+| user_rating       | Average User Rating value (for all version)|
+| cont_rating       | Content Rating|
+| prime_genre       | Primary Genre |
+| lang.num          | Number of supported languages|
+| sup_devices.num   | Number of supporting devices|
+
+### EDA
+Firstly, I separated the price into paid group and free group, and the difference of proportion of the two group is not remarkable, so I thought the price can be retained as one factor.
+
+```{r include=FALSE}
+# saperate the data into two subsets:paid and free
+paid<- app1%>%
+  subset(price!=0)
+free<- app1%>%
+  subset(price==0)
+```
+
+```{r echo=FALSE}
+#plot a pie to see the proportion of paid and free subset
+test<-c(nrow(paid),nrow(free))
+names(test)=c("paid","free")
+pie(test,edges = 200, radius = 0.8, clockwise = FALSE, init.angle =90)
+```
+
+Also, most of the comments number in different genres is concentrated in 250, however, the comments number of game genre is larger a lot than others, so I took log of this variable to avoid long tail, the same treatment were taken for other similar variables. 
+```{r echo=FALSE, fig.cap=" histogram of number of comments",warning=FALSE}
+#plot histogram of number of comments
+#hist(app1$rating_count_tot)
+ggplot(data = app1,mapping = aes(x=rating_count_tot))+
+  geom_histogram(breaks = seq(0,10000,1000),fill="hotpink3")+xlim(0,10000)
+```
+
+
+
+Lastly, I tried different variables in data and plot the relation with comments number, and I found that some variables like number of supporting devices and content rating didn't have a consistent trend with contents number. If I use these variables to fit model may lose statistical significant. After filtering I decided to take user rating, number of supporting devices and price for fitting model.
+
+```{r echo=FALSE,fig.cap="Three variables vs log(number of comment)"}
+p1<-ggplot(data = app1)+
+  aes(as.numeric(user_rating),log(rating_count_tot))+
+  geom_point(aes(color = prime_genre),alpha = 0.1)+
+  labs(x="user rating",y="log(number of comment)")+
+  geom_smooth(aes(color = prime_genre),method = "lm",se=F,formula = y~x)+
+  theme(legend.position = "none")
+
+p2<-ggplot(data = app1)+
+  aes(log(lang.num),log(rating_count_tot))+
+  geom_point(aes(color = prime_genre),alpha = 0.1)+
+  labs(x="log(Number of supporting languages)",y="log(number of comment)")+
+  geom_smooth(aes(color = prime_genre),method = "lm",se=F,formula = y~x)+
+  theme(legend.position = "none")
+
+p3<- ggplot(data = app1)+
+  aes(price,log(rating_count_tot))+
+  geom_point(aes(color = prime_genre),alpha = 0.1)+
+  labs(x="price",y="log(number of comment)")+
+  geom_smooth(aes(color = prime_genre),method = "lm",se=F,formula = y~x)+
+  theme(legend.position = "none")
+
+
+
+ggarrange(plots = list(p1,p2,p3),ncol = 3,nrow = 1)
+```
+### Model fitting
+As I see in the EDA part, though the trend of variables is similar, the difference between genres is significant, so I chose multilevel model for fitting model, and adding random effects in both intercept and slope to make them different among genres. Besides, I took log of the rating counts and number of supporting devices because these two numbers have a relatively large scale.
+
+I tried two similar multilevel models, the difference between these is  making the effects of price different. In the first model I made both of intercepts and slopes of price different in genres, and in the second model I removed the random effects for slope of price. Comparing for two models, I found that the second one fitted better and had a smaller p-value, so I decided to take the second model as my final outcomes.
+
+
+```{r include=FALSE}
+#model fit1
+fit1<-lmer(log(rating_count_tot)~user_rating+log(lang.num)+price+(1+user_rating|prime_genre)+(1+log(lang.num)|prime_genre)+(1+price|prime_genre),app1)
+summary(fit1)
+coef(fit1)
+```
+
+
+```{r include=FALSE}
+#model fit2
+fit2<-lmer(log(rating_count_tot)~user_rating+log(lang.num)+price+(1+user_rating|prime_genre)+(1+log(lang.num)|prime_genre),app1)
+summary(fit2)
+coef(fit2)
+```
+
+```{r eval=FALSE}
+#Final model
+finalmodel <- lmer(log(rating_count_tot)~user_rating+log(lang.num)+
+                  price+(1+user_rating|prime_genre)+
+                    (1+log(lang.num)|prime_genre),app1)
+```
+
+
+## Result
+### Coefficients
+The basic fixed effects of the model are showed as follow:
+
+|                |Estimate   |Std. Error  |df        |t value |Pr(>&#124;t&#124;) |
+|:---:           |:---:      |:---:       |:---:     |:---:   |:---:     |
+|(Intercept)     |2.88719    |0.42137     |14.24388  |6.852   |7.22e-06  |
+|user_rating     |0.73732    |0.12068     |13.09960  |6.110   |3.60e-05  |
+|log(lang.num)   |0.66253    |0.07223     |13.97388  |9.172   |2.74e-07  |
+|price           |-0.10116   |0.01343     |2642.36114|-7.530  |6.93e-14  |
+
+
+Coefficients of random effects of some standard genres as follow:
+
+|prime_genre        |(Intercept)|user_rating |log(lang.num)|price     |
+|:---:              |:---:      |:---:       |:---:        |:---:     |
+|Entertainment      |4.3307592  |0.49918081  |0.6524462    |-0.101162 |
+|Games              |0.4978502  |1.13147382  |0.4412793    |-0.101162 |
+|Book               |7.6949329  |-0.05578763 |0.4416768    |-0.101162 | 
+|Food & Drink       |4.3396180  |0.49771943  |0.4795743    |-0.101162 |
+
+### Model Specific
+Taking the game group as an example, the formula of fitting model is as follow:
+
+$$log(rating count)= 0.4978502 + 1.13147382\cdot userrating + 0.4412793\cdot log(lang.num) + -0.101162\cdot price$$
+The coefficient of price in negative, it’s common because when people viewing the app store, if the price of the app is too high, they may abandon the willing to download this app, and another possible reason is the number of deliberate praise comments will decrease when the app charges. And the remaining parameters is positive, for the rating, which means that a higher rating of the app, more comments it will receive, because users are willing to praise after good experience, the number of supporting languages has the same positive impact, in the model of game group,if one app supports kind of language increase by 1%, the comments value can increase by 0.44%.
+
+\newpage
+### Model Validation
+
+
+```{r echo=FALSE,fig.cap="Residual plot and Q-Q plot of final model"}
+re <- plot(fit2)
+qq <- qqmath(fit2)
+grid.arrange(re,qq,nrow=1)
+```
+In the residual plot we can see the residual points are evenly distributed on both sides of zero, it’ a reasonable sign, also in the Q-Q plot most of the points located in the line, which means that the normality of model is good.
+
+## Discussion
+
+The results showed before are reasonable, the mainly trend of influence of app rating and supporting language numbers on comments counts is positive, which represents if an app has a higher user rating or supports more languages, it will gain more user comments. However, the relation between price and comments number is negative, more expensive app has fewer comments. And all the trends are suitable for almost every genre in my data, which are consistent with the result in the EDA part.
+
+There are still some weaknesses in my model. Firstly, I pretended the relation between comments number and downloads number is positive, more comments represent more downloads will make it easier to interpret outcomes, but this precondition doesn’t have any data supporting. Also, I didn’t distinguish the nature of comments are good or bad, so it will cover up something because the influence of predictors may be opposite with the result of model for negative reviews. Besides, I believe there are still other factors to effect comments, but I just chose three have remarkable and consistent influence. Further research should be considered beside my project.
+
+In the future I can analyse the connection between number of comments and downloads, also I can add some other important variables into model to make it more accurate.
+
+\newpage
+## Appendix
+### EDA
+ 
+```{r echo=FALSE, fig.cap="plot of the count of different genres in free subset"}
+#plot a bar to see the count of different genres in free subset
+free_group<- free%>% group_by(prime_genre)%>%
+    summarise(count=n())
+
+paid_group<- paid%>% group_by(prime_genre)%>%
+    summarise(count=n())
+
+ggplot(data=free_group,aes(x=prime_genre,y=count,fill=prime_genre,group=factor(1)))+
+  geom_bar(stat="identity",width=0.5)+ theme(axis.text.x = element_text(angle=45, hjust=.4, vjust=.5),legend.position = "none")
+```
+
+```{r  echo=FALSE, fig.cap="plot of the count of different genres in paid subset"}
+#plot a bar to see the count of different genres in paid subset
+ggplot(data=paid_group,aes(x=prime_genre,y=count,fill=prime_genre,group=factor(1)))+
+  geom_bar(stat="identity",width=0.5)+ theme(axis.text.x = element_text(angle=45, hjust=.4, vjust=.5),legend.position = "none")
+
+group_money<- left_join(paid_group,free_group,by = "prime_genre")
+```
+
+```{r echo=FALSE, fig.cap="plot for comparing free and paid group"}
+#Compare free and paid group
+f <- c(group_money$count.x)
+p <- c(group_money$count.y)
+money <- rbind(f,p)
+names<-c(group_money$prime_genre)
+barplot(money,names.arg = names,beside=TRUE)
+```
+\newpage
+### Full Results
+Random effects of model
+```{r echo=FALSE}
+ranef(fit2)
+```
+Fixed effects of model
+```{r echo=FALSE}
+fixef(fit2)
+```
+Coefficients of model
+```{r echo=FALSE}
+coef(fit2)
+```
+
