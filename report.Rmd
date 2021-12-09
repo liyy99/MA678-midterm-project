@@ -43,14 +43,14 @@ library(lattice)
 ```
 
 ## Abstract
-As the developing of mobile landscape, proportion of mobile device usage is increasing, so it's necessary for each tech company to improve the quality of their products in app market. However, there are a mass of different apps in one genre, then how to make your app seems attractive in app market and get more users is the key point for each company to consider. When an user wanna download an app from the market, the comments of the app is definitely one of the most important part for him to decide. This report are consisted of 4 parts: Introduction, Method, Result and Discussion.
+As the developing of mobile landscape, proportion of mobile device usage is increasing, so it's necessary for each tech company to improve the quality of their products in app market. However, there are a mass of different apps in one genre, then how to make your app seems attractive in app market and get more users is the key point for each company to consider. When an user wanna download an app from the market, the rating of the app is definitely one of the most important part for him to decide. This report are consisted of 4 parts: Introduction, Method, Result and Discussion.
 
 
 
 ## Introduction
-Comments of app are proportional to downloads, which means that an app has more comments represent it has more users in general. Meanwhile, the comments can be kind of feedback for companies to improve their product.
+rating of app are proportional to downloads, which means that an app has more rating represent it has more users in general. Meanwhile, the rating can be kind of feedback for companies to improve their product.
 
-In this project I use the data from ios platform, which holds about 47% of the smartphone market to analyse the relationship between comments value of different genres and some factors may influence the comments by using multilevel model. For example, the price may be a common factor when a user viewing store to choose an app to download and comment.
+In this project I use the data from ios platform, which holds about 47% of the smartphone market to analyse the relationship between rating counts of different genres and some factors may influence the rating counts by using multilevel model. For example, the price may be a common factor when a user viewing store to choose an app to download and rating.
 
 ## Method
 
@@ -123,9 +123,9 @@ names(test)=c("paid","free")
 pie(test,edges = 200, radius = 0.8, clockwise = FALSE, init.angle =90)
 ```
 
-Also, most of the comments number in different genres is concentrated in 250, however, the comments number of game genre is larger a lot than others, so I took log of this variable to avoid long tail, the same treatment were taken for other similar variables. 
-```{r echo=FALSE, fig.cap=" histogram of number of comments",warning=FALSE}
-#plot histogram of number of comments
+Also, most of the rating number in different genres is concentrated in 250, however, the rating number of game genre is larger a lot than others, so I took log of this variable to avoid long tail, the same treatment were taken for other similar variables. 
+```{r echo=FALSE, fig.cap=" histogram of number of rating",warning=FALSE}
+#plot histogram of number of rating
 #hist(app1$rating_count_tot)
 ggplot(data = app1,mapping = aes(x=rating_count_tot))+
   geom_histogram(breaks = seq(0,10000,1000),fill="hotpink3")+xlim(0,10000)
@@ -133,27 +133,27 @@ ggplot(data = app1,mapping = aes(x=rating_count_tot))+
 
 
 
-Lastly, I tried different variables in data and plot the relation with comments number, and I found that some variables like number of supporting devices and content rating didn't have a consistent trend with contents number. If I use these variables to fit model may lose statistical significant. After filtering I decided to take user rating, number of supporting devices and price for fitting model.
+Lastly, I tried different variables in data and plot the relation with rating number, and I found that some variables like number of supporting devices and content rating didn't have a consistent trend with rating number. If I use these variables to fit model may lose statistical significant. After filtering I decided to take user rating, number of supporting langugers and price for fitting model.
 
-```{r echo=FALSE,fig.cap="Three variables vs log(number of comment)"}
+```{r echo=FALSE,fig.cap="Three variables vs log(number of rating)"}
 p1<-ggplot(data = app1)+
   aes(as.numeric(user_rating),log(rating_count_tot))+
   geom_point(aes(color = prime_genre),alpha = 0.1)+
-  labs(x="user rating",y="log(number of comment)")+
+  labs(x="user rating",y="log(number of rating)")+
   geom_smooth(aes(color = prime_genre),method = "lm",se=F,formula = y~x)+
   theme(legend.position = "none")
 
 p2<-ggplot(data = app1)+
   aes(log(lang.num),log(rating_count_tot))+
   geom_point(aes(color = prime_genre),alpha = 0.1)+
-  labs(x="log(Number of supporting languages)",y="log(number of comment)")+
+  labs(x="log(Number of supporting languages)",y="log(number of rating)")+
   geom_smooth(aes(color = prime_genre),method = "lm",se=F,formula = y~x)+
   theme(legend.position = "none")
 
 p3<- ggplot(data = app1)+
   aes(price,log(rating_count_tot))+
   geom_point(aes(color = prime_genre),alpha = 0.1)+
-  labs(x="price",y="log(number of comment)")+
+  labs(x="price",y="log(number of rating)")+
   geom_smooth(aes(color = prime_genre),method = "lm",se=F,formula = y~x)+
   theme(legend.position = "none")
 
@@ -215,7 +215,7 @@ Coefficients of random effects of some standard genres as follow:
 Taking the game group as an example, the formula of fitting model is as follow:
 
 $$log(rating count)= 0.4978502 + 1.13147382\cdot userrating + 0.4412793\cdot log(lang.num) + -0.101162\cdot price$$
-The coefficient of price in negative, it’s common because when people viewing the app store, if the price of the app is too high, they may abandon the willing to download this app, and another possible reason is the number of deliberate praise comments will decrease when the app charges. And the remaining parameters is positive, for the rating, which means that a higher rating of the app, more comments it will receive, because users are willing to praise after good experience, the number of supporting languages has the same positive impact, in the model of game group,if one app supports kind of language increase by 1%, the comments value can increase by 0.44%.
+The coefficient of price in negative, it’s common because when people viewing the app store, if the price of the app is too high, they may abandon the willing to download this app, and another possible reason is the number of deliberate good rating will decrease when the app charges. And the remaining parameters is positive, for the rating, which means that a higher rating of the app, more rating counts it will receive, because users are willing to praise after good experience, the number of supporting languages has the same positive impact, in the model of game group,if one app supports kind of language increase by 1%, the rating counts value can increase by 0.44%.
 
 \newpage
 ### Model Validation
@@ -230,11 +230,11 @@ In the residual plot we can see the residual points are evenly distributed on bo
 
 ## Discussion
 
-The results showed before are reasonable, the mainly trend of influence of app rating and supporting language numbers on comments counts is positive, which represents if an app has a higher user rating or supports more languages, it will gain more user comments. However, the relation between price and comments number is negative, more expensive app has fewer comments. And all the trends are suitable for almost every genre in my data, which are consistent with the result in the EDA part.
+The results showed before are reasonable, the mainly trend of influence of app rating and supporting language numbers on rating counts is positive, which represents if an app has a higher user rating or supports more languages, it will gain more user rating. However, the relation between price and rating number is negative, more expensive app has fewer rating. And all the trends are suitable for almost every genre in my data, which are consistent with the result in the EDA part.
 
-There are still some weaknesses in my model. Firstly, I pretended the relation between comments number and downloads number is positive, more comments represent more downloads will make it easier to interpret outcomes, but this precondition doesn’t have any data supporting. Also, I didn’t distinguish the nature of comments are good or bad, so it will cover up something because the influence of predictors may be opposite with the result of model for negative reviews. Besides, I believe there are still other factors to effect comments, but I just chose three have remarkable and consistent influence. Further research should be considered beside my project.
+There are still some weaknesses in my model. Firstly, I pretended the relation between rating number and downloads number is positive, more rating represent more downloads will make it easier to interpret outcomes, but this precondition doesn’t have any data supporting. Also, I didn’t distinguish the nature of rating are good or bad, so it will cover up something because the influence of predictors may be opposite with the result of model for negative reviews. Besides, I believe there are still other factors to effect rating conuts, but I just chose three have remarkable and consistent influence. Further research should be considered beside my project.
 
-In the future I can analyse the connection between number of comments and downloads, also I can add some other important variables into model to make it more accurate.
+In the future I can analyse the connection between number of rating and downloads, also I can add some other important variables into model to make it more accurate.
 
 \newpage
 ## Appendix
