@@ -116,7 +116,7 @@ free<- app1%>%
   subset(price==0)
 ```
 
-```{r echo=FALSE}
+```{r echo=FALSE,fig.cap=" pie plot of proporetion of price",warning=FALSE}
 #plot a pie to see the proportion of paid and free subset
 test<-c(nrow(paid),nrow(free))
 names(test)=c("paid","free")
