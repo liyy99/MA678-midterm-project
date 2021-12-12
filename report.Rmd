@@ -43,22 +43,21 @@ library(lattice)
 ```
 
 ## Abstract
-As the developing of mobile landscape, proportion of mobile device usage is increasing, so it's necessary for each tech company to improve the quality of their products in app market. However, there are a mass of different apps in one genre, then how to make your app seems attractive in app market and get more users is the key point for each company to consider. When an user wanna download an app from the market, the rating of the app is definitely one of the most important part for him to decide. This report are consisted of 4 parts: Introduction, Method, Result and Discussion.
+As the developing of mobile landscape, proportion of mobile device usage is increasing, so it's necessary for each tech company to improve the quality of their products in app market. When an user wanna download an app from the market, the rating part of the app is definitely one of the most important part for him to decide. Therefore, in this report I tried to explore the relation between rating and other factors of apps. And based on the multilevel model analysis, I found that the rating counts will be influenced by rating, price and number of supporting languages. This report are consisted of 4 parts: Introduction, Method, Result and Discussion.
 
 
 
 ## Introduction
-rating of app are proportional to downloads, which means that an app has more rating represent it has more users in general. Meanwhile, the rating can be kind of feedback for companies to improve their product.
+Amount of rating of app are proportional to downloads, which means that if an app has more rating, it has more users in general. Meanwhile, the rating can be kind of feedback for companies to improve their product. So I believe that most companies hope to receive more ratings
 
-In this project I use the data from ios platform, which holds about 47% of the smartphone market to analyse the relationship between rating counts of different genres and some factors may influence the rating counts by using multilevel model. For example, the price may be a common factor when a user viewing store to choose an app to download and rating.
+In this project I use the data from ios platform, which holds about 47% of the smartphone market to analyse the relationship between rating counts of different genres and some factors may influence the rating counts by using multilevel model. For example, the price may be a common factor when a user viewing store to choose an app to download, more supported languages could attract more users from various countries and higher rating make users feel this app is better.
+
+
 
 ## Method
 
-### Data source
+### Data source and interpretation
 Link of the dataset from Kaggle:[Mobile App Store ( 7200 apps)](https://www.kaggle.com/ramamet4/app-store-apple-data-set-10k-apps)
-
-### Data clean
-Firstly, I selected the columns that will be useful for my analysis, and then I cleaned the data by filtering by the genres, there are twenty-two primary genres in the data, and other rows are deleted because of containing some unreadable words. Also, I removed NA value and some meaningless symbols. For the price column, it looks strange for most of the value are end with 0.99, so I rounded up all the decimals in price.
 ```{r include=FALSE}
 library(tidyverse)
 library(dplyr)
@@ -90,20 +89,20 @@ app1$user_rating<- as.numeric(app1$user_rating)
 app1$lang.num<- as.numeric(app1$lang.num)
 
 ```
-\newpage
-### variables interpretat
 
-| column names      | explanation |
-| :--:              | :----- |
-| id                | App ID |
-| track_name        | App Name |
-| price             | Price amount |
-| rating_count_tot  | User Rating counts (for all version) |
-| user_rating       | Average User Rating value (for all version)|
-| cont_rating       | Content Rating|
-| prime_genre       | Primary Genre |
-| lang.num          | Number of supported languages|
-| sup_devices.num   | Number of supporting devices|
+
+
+| column names        | explanation |
+| :--:                | :----- |
+| id                  | App ID |
+| track_name          | App Name |
+| **price**           | **Price amount** |
+| **rating_count_tot**| **User Rating counts** |
+| **user_rating**     | **Average User Rating value**|
+| cont_rating         | Content Rating|
+| **prime_genre**     | **Primary Genre** |
+| **lang.num**        | **Number of supported languages**|
+| sup_devices.num     | Number of supporting devices|
 
 ### EDA
 Firstly, I separated the price into paid group and free group, and the difference of proportion of the two group is not remarkable, so I thought the price can be retained as one factor.
@@ -116,15 +115,15 @@ free<- app1%>%
   subset(price==0)
 ```
 
-```{r echo=FALSE,fig.cap=" pie plot of proporetion of price",warning=FALSE}
+```{r include=FALSE,fig.cap=" pie plot of proporetion of price",warning=FALSE}
 #plot a pie to see the proportion of paid and free subset
 test<-c(nrow(paid),nrow(free))
 names(test)=c("paid","free")
 pie(test,edges = 200, radius = 0.8, clockwise = FALSE, init.angle =90)
 ```
 
-Also, most of the rating number in different genres is concentrated in 250, however, the rating number of game genre is larger a lot than others, so I took log of this variable to avoid long tail, the same treatment were taken for other similar variables. 
-```{r echo=FALSE, fig.cap=" histogram of number of rating",warning=FALSE}
+Also, most of the rating number in different genres is concentrated in 250, however, the rating number of game genre is larger a lot than others, so I took log of this variable to avoid long tail, the same treatment were taken for number of supported languages. 
+```{r include=FALSE, fig.cap=" histogram of number of rating",warning=FALSE}
 #plot histogram of number of rating
 #hist(app1$rating_count_tot)
 ggplot(data = app1,mapping = aes(x=rating_count_tot))+
@@ -133,7 +132,7 @@ ggplot(data = app1,mapping = aes(x=rating_count_tot))+
 
 
 
-Lastly, I tried different variables in data and plot the relation with rating number, and I found that some variables like number of supporting devices and content rating didn't have a consistent trend with rating number. If I use these variables to fit model may lose statistical significant. After filtering I decided to take user rating, number of supporting langugers and price for fitting model.
+Lastly, I tried different variables in data and plot the relation with rating number, and I found that some variables like number of supporting devices and content rating didn't have a clear trend with rating number. If I use these variables to fit model may lose statistical significant. After filtering I decided to take user rating, number of supported languages and price for model fitting.
 
 ```{r echo=FALSE,fig.cap="Three variables vs log(number of rating)"}
 p1<-ggplot(data = app1)+
@@ -161,8 +160,10 @@ p3<- ggplot(data = app1)+
 
 ggarrange(plots = list(p1,p2,p3),ncol = 3,nrow = 1)
 ```
+
+
 ### Model fitting
-As I see in the EDA part, though the trend of variables is similar, the difference between genres is significant, so I chose multilevel model for fitting model, and adding random effects in both intercept and slope to make them different among genres. Besides, I took log of the rating counts and number of supporting devices because these two numbers have a relatively large scale.
+As I see in the EDA part, though the trend of variables is similar, the difference between genres is significant, so I chose multilevel model for fitting model, and adding random effects in both intercept and slope to make them different among genres. Besides, I took log of the rating counts and number of supported devices because these two numbers have a relatively large scale.
 
 I tried two similar multilevel models, the difference between these is  making the effects of price different. In the first model I made both of intercepts and slopes of price different in genres, and in the second model I removed the random effects for slope of price. Comparing for two models, I found that the second one fitted better and had a smaller p-value, so I decided to take the second model as my final outcomes.
 
@@ -215,30 +216,61 @@ Coefficients of random effects of some standard genres as follow:
 Taking the game group as an example, the formula of fitting model is as follow:
 
 $$log(rating count)= 0.4978502 + 1.13147382\cdot userrating + 0.4412793\cdot log(lang.num) + -0.101162\cdot price$$
-The coefficient of price in negative, it’s common because when people viewing the app store, if the price of the app is too high, they may abandon the willing to download this app, and another possible reason is the number of deliberate good rating will decrease when the app charges. And the remaining parameters is positive, for the rating, which means that a higher rating of the app, more rating counts it will receive, because users are willing to praise after good experience, the number of supporting languages has the same positive impact, in the model of game group,if one app supports kind of language increase by 1%, the rating counts value can increase by 0.44%.
-
-\newpage
-### Model Validation
 
 
-```{r echo=FALSE,fig.cap="Residual plot and Q-Q plot of final model"}
-re <- plot(fit2)
-qq <- qqmath(fit2)
-grid.arrange(re,qq,nrow=1)
+```{r echo=FALSE,fig.cap="Random effects of user rating",results='hide',fig.keep='all'}
+ranef1<-ranef(fit2,condVar=TRUE)
+ranef2<-ranef(fit2,condVar=TRUE)
+ranef_userrating<-ranef(fit2,condVar=TRUE)[[1]][1:2]
+ranef1[[1]]<-ranef_userrating
+ranef_lang<-ranef(fit2,condVar=TRUE)[[1]][3:4]
+ranef2[[1]]<-ranef_lang
+dotplot(ranef1)
 ```
-In the residual plot we can see the residual points are evenly distributed on both sides of zero, it’ a reasonable sign, also in the Q-Q plot most of the points located in the line, which means that the normality of model is good.
+
+```{r echo=FALSE,fig.cap="Random effects of log(lang.num)",results='hide',fig.keep='all'}
+ranef2<-ranef(fit2,condVar=TRUE)
+ranef_lang<-ranef(fit2,condVar=TRUE)[[1]][3:4]
+ranef2[[1]]<-ranef_lang
+dotplot(ranef2)
+
+```
+
+
+The coefficient of price in negative, it’s common because when people viewing the app store, if the price of the app is too high, they may abandon the willing to download this app, and another possible reason is the number of deliberate good rating will decrease when the app charges. And the remaining parameters is positive, for the rating, which means that a higher rating of the app, more rating counts app will receive, because users are willing to praise after good experience, the number of supporting languages has the same positive impact. Take the model for Game as an example,if one app of game supports number of language increase by 1%, the rating counts value can increase by 0.44%.
+
+However, I discovered an unusual genre, is Book. The coefficient of user rating of this genre is -0.05, which means that the influence of user rating on rating counts is little even negative. I guess the possible cause is the choice of apps about book is limited so the users would not care about the rating, or rating of apps genre Book are generally low.
+
+
 
 ## Discussion
 
-The results showed before are reasonable, the mainly trend of influence of app rating and supporting language numbers on rating counts is positive, which represents if an app has a higher user rating or supports more languages, it will gain more user rating. However, the relation between price and rating number is negative, more expensive app has fewer rating. And all the trends are suitable for almost every genre in my data, which are consistent with the result in the EDA part.
+The results showed before are reasonable, the mainly influence of app rating and supported language numbers on rating counts is positive, which represents if an app has a higher user rating or supports more languages, it can receive more user rating. However, the relation between price and rating number is negative, more expensive app has fewer rating. And all the trends are suitable for almost every genre in my data, which are consistent with the result in the EDA part.
 
-There are still some weaknesses in my model. Firstly, I pretended the relation between rating number and downloads number is positive, more rating represent more downloads will make it easier to interpret outcomes, but this precondition doesn’t have any data supporting. Also, I didn’t distinguish the nature of rating are good or bad, so it will cover up something because the influence of predictors may be opposite with the result of model for negative reviews. Besides, I believe there are still other factors to effect rating counts, but I just chose three have remarkable and consistent influence. Further research should be considered beside my project.
+There are still some weaknesses in my model. Firstly, I pretended the relation between rating counts and download counts is positive, more rating represent more downloads will make it easier to interpret outcomes, but this precondition doesn’t have any data supporting. Also, I didn’t distinguish the nature of rating are good or bad, so it will cover up something significant because the influence of predictors may be opposite with the result of model for negative reviews. Besides, I believe there are still other factors effecting rating counts, but I just chose three which have remarkable and consistent influence. Further research should be considered beside my project.
 
 In the future I can analyse the connection between number of rating and downloads, also I can add some other important variables into model to make it more accurate.
 
 \newpage
+
 ## Appendix
 ### EDA
+ 
+```{r echo=FALSE,fig.cap=" pie plot of proporetion of price",warning=FALSE}
+#plot a pie to see the proportion of paid and free subset
+test<-c(nrow(paid),nrow(free))
+names(test)=c("paid","free")
+pie(test,edges = 200, radius = 0.8, clockwise = FALSE, init.angle =90)
+```
+
+
+```{r echo=FALSE, fig.cap=" histogram of number of rating",warning=FALSE}
+#plot histogram of number of rating
+#hist(app1$rating_count_tot)
+ggplot(data = app1,mapping = aes(x=rating_count_tot))+
+  geom_histogram(breaks = seq(0,10000,1000),fill="hotpink3")+xlim(0,10000)
+```
+ 
  
 ```{r echo=FALSE, fig.cap="plot of the count of different genres in free subset"}
 #plot a bar to see the count of different genres in free subset
@@ -269,6 +301,52 @@ names<-c(group_money$prime_genre)
 barplot(money,names.arg = names,beside=TRUE)
 ```
 \newpage
+### Data clean
+Firstly, I selected the columns that will be useful for my analysis, and then I cleaned the data by filtering by the genres, there are twenty-two primary genres in the data, and other rows are deleted because of containing some unreadable words. Also, I removed NA value and some meaningless symbols. For the price column, it looks strange for most of the value are end with 0.99, so I rounded up all the decimals in price.
+```{r include=FALSE}
+library(tidyverse)
+library(dplyr)
+raw_app<-read.csv(file="AppleStore.csv")
+Encoding(raw_app$track_name) <-  "UTF-8" ##转换成UTF-8
+#select the needed columns for later analysis
+app<- raw_app%>%
+  select(id,track_name,price,rating_count_tot,user_rating,cont_rating,prime_genre,lang.num,sup_devices.num)
+```
+
+
+```{r include=FALSE}
+#select data by 22 genres
+app1<-filter(app,prime_genre=="Games"|prime_genre=="Productivity"|prime_genre=="Weather"|prime_genre=="Shopping"|prime_genre=="Reference"|prime_genre=="Finance"|prime_genre=="Music"|prime_genre=="Utilities"|prime_genre=="Travel"|prime_genre=="Social Networking"|prime_genre=="Sports"|prime_genre=="Business"|prime_genre=="Health & Fitness"|prime_genre=="Entertainment"|prime_genre=="News"|prime_genre=="Navigation"|prime_genre=="Education"|prime_genre=="Book"|prime_genre=="Lifestyle"|prime_genre=="Photo & Video"|prime_genre=="Food & Drink"|prime_genre=="Medical")%>%
+  filter(rating_count_tot!=0)
+
+# See genres
+unique(app1$prime_genre)
+
+#delete + in cont_rating
+app1$cont_rating<-gsub('[+]', '', app1$cont_rating)
+app1$price<- as.numeric(ceiling(as.numeric(app1$price)))
+app1$rating_count_tot<- as.numeric(app1$rating_count_tot)
+app1<- app1%>%
+  mutate(paid= ifelse(price>0,1,0))%>%
+  filter(lang.num !="0")
+
+app1$user_rating<- as.numeric(app1$user_rating)
+app1$lang.num<- as.numeric(app1$lang.num)
+
+```
+
+
+### Model Validation
+
+
+```{r echo=FALSE,fig.cap="Residual plot and Q-Q plot of final model"}
+re <- plot(fit2)
+qq <- qqmath(fit2)
+grid.arrange(re,qq,nrow=1)
+```
+In the residual plot we can see the residual points are evenly distributed on both sides of zero, it’ a reasonable sign, also in the Q-Q plot most of the points located in the line, which means that the normality of model is good.
+
+
 ### Full Results
 Random effects of model
 ```{r echo=FALSE}
